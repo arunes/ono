@@ -26,39 +26,19 @@ static CONFIG_FILE: &str = "ono.yaml";
 pub fn get_config() -> Result<OnoConfig, OnoConfigError> {
     // try to read the config from file
     let path = get_full_config_path(true);
-    let config_map = if let Ok(true) = fs::exists(&path) {
-        yaml_parser::parse_yaml_from_file(&path)
-    } else {
-        Ok(get_default_config())
+    let config_map = yaml_parser::parse_yaml_from_file(&path).unwrap_or(get_default_config());
+    let get_val = |key: &str| {
+        config_map
+            .get(key)
+            .and_then(|v| v.as_str())
+            .map(String::from)
     };
 
-    println!("{:?}", config_map);
-
-    match config_map {
-        Ok(map) => {
-            let history_file = match map.get("history_file") {
-                Some(Some(v)) => v.get_string(),
-                _ => None,
-            };
-
-            let data_dir = match map.get("data_dir") {
-                Some(Some(v)) => v.get_string(),
-                _ => None,
-            };
-
-            let editor = match map.get("editor") {
-                Some(Some(v)) => v.get_string(),
-                _ => None,
-            };
-
-            Ok(OnoConfig {
-                data_dir,
-                editor,
-                history_file,
-            })
-        }
-        Err(_) => Err(OnoConfigError::FileMalformed),
-    }
+    Ok(OnoConfig {
+        data_dir: get_val("data_dir"),
+        history_file: get_val("history_file"),
+        editor: get_val("editor"),
+    })
 }
 
 fn get_full_config_path(include_filename: bool) -> PathBuf {
@@ -72,17 +52,17 @@ fn get_full_config_path(include_filename: bool) -> PathBuf {
     path
 }
 
-fn get_default_config() -> HashMap<String, Option<YamlValue>> {
+fn get_default_config() -> HashMap<String, YamlValue> {
     let editor = os_helper::get_editor();
     let data_dir = os_helper::get_data_dir();
 
-    let mut result: HashMap<String, Option<YamlValue>> = HashMap::new();
+    let mut result: HashMap<String, YamlValue> = HashMap::new();
 
     result.insert(
         "history_file".to_string(),
-        os_helper::get_history_file().map(YamlValue::String),
+        os_helper::get_history_file().map_or_else(|| YamlValue::Null, YamlValue::String),
     );
-    result.insert("editor".to_string(), Some(YamlValue::String(editor)));
-    result.insert("data_dir".to_string(), Some(YamlValue::String(data_dir)));
+    result.insert("editor".to_string(), YamlValue::String(editor));
+    result.insert("data_dir".to_string(), YamlValue::String(data_dir));
     result
 }

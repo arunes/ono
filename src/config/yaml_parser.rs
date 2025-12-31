@@ -1,18 +1,25 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::Path};
 
 /// Represents yaml value
 #[derive(Debug)]
 pub enum YamlValue {
     String(String),
     Array(Vec<String>),
+    Null,
 }
 
 impl YamlValue {
-    pub fn get_string(&self) -> Option<String> {
-        if let YamlValue::String(str) = self {
-            Some(str.to_string())
-        } else {
-            None
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            YamlValue::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_vec(&self) -> Option<&[String]> {
+        match self {
+            YamlValue::Array(a) => Some(a.as_slice()),
+            _ => None,
         }
     }
 }
@@ -25,21 +32,18 @@ pub enum YamlParserError {
 }
 
 /// Parse yaml from file
-pub fn parse_yaml_from_file(
-    path: &PathBuf,
-) -> Result<HashMap<String, Option<YamlValue>>, YamlParserError> {
-    match fs::read_to_string(path) {
-        Ok(file_content) => parse_yaml_from_string(&file_content),
-        Err(_) => Err(YamlParserError::FileNotFound),
-    }
+pub fn parse_yaml_from_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<HashMap<String, YamlValue>, YamlParserError> {
+    let content = fs::read_to_string(path).map_err(|_| YamlParserError::FileNotFound)?;
+    parse_yaml_from_string(&content)
 }
 
 /// Parse yaml from string
 pub fn parse_yaml_from_string(
     yaml_content: &str,
-) -> Result<HashMap<String, Option<YamlValue>>, YamlParserError> {
-    let mut result: HashMap<String, Option<YamlValue>> = HashMap::new();
-
+) -> Result<HashMap<String, YamlValue>, YamlParserError> {
+    let mut result: HashMap<String, YamlValue> = HashMap::new();
     let mut multiline_key: Option<String> = None;
     for line in yaml_content.lines() {
         let line = remove_yaml_comments(line);
@@ -48,13 +52,13 @@ pub fn parse_yaml_from_string(
         match (key, value) {
             // key: value
             (Some(k), Some(v)) => {
-                let s_val = Some(YamlValue::String(v.to_string()));
+                let s_val = YamlValue::String(v.to_string());
                 result.entry(k.to_string()).or_insert(s_val);
             }
 
             // key:
             (Some(k), None) => {
-                let a_val = Some(YamlValue::Array(vec![]));
+                let a_val = YamlValue::Array(vec![]);
                 result.entry(k.to_string()).or_insert(a_val);
                 multiline_key = Some(k.to_string());
             }
@@ -62,7 +66,7 @@ pub fn parse_yaml_from_string(
             // - value
             (None, Some(v)) => {
                 if let Some(ref ml_key) = multiline_key
-                    && let Some(Some(YamlValue::Array(arr))) = result.get_mut(ml_key)
+                    && let Some(YamlValue::Array(arr)) = result.get_mut(ml_key)
                 {
                     arr.push(v.to_string());
                     continue; // Move to next line
@@ -158,14 +162,14 @@ bar:
         let map = result.unwrap();
 
         let key_value = &map["value"];
-        if let Some(YamlValue::String(val)) = key_value {
+        if let Some(val) = key_value.as_str() {
             assert_eq!(val, "testing");
         } else {
             panic!("Could not get foo.");
         }
 
         let foo = &map["foo"];
-        if let Some(YamlValue::Array(foo_val)) = foo {
+        if let Some(foo_val) = foo.as_vec() {
             assert_eq!(foo_val.len(), 2);
             assert_eq!(foo_val[0], "list1");
             assert_eq!(foo_val[1], "list2");
@@ -174,7 +178,7 @@ bar:
         }
 
         let foo = &map["bar"];
-        if let Some(YamlValue::Array(foo_val)) = foo {
+        if let Some(foo_val) = foo.as_vec() {
             assert_eq!(foo_val.len(), 2);
             assert_eq!(foo_val[0], "1");
             assert_eq!(foo_val[1], "2.0");

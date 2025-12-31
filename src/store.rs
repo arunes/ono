@@ -37,78 +37,130 @@ pub fn load_snippets(data_dir: &str) -> io::Result<Vec<Snippet>> {
 }
 
 fn extract_snippet(path: &Path, content: &str) -> Option<Snippet> {
-    let mut in_frontmatter = false;
-    let mut in_code_block = false;
-    let mut frontmatter_range: (Option<usize>, Option<usize>) = (None, None);
-    let mut code_block_range: (Option<usize>, Option<usize>) = (None, None);
-    let mut frontmatter: Vec<&str> = vec![];
-    let mut code_block: Vec<&str> = vec![];
+    let mut lines = content.match_indices('\n').scan(0, |state, (idx, _)| {
+        let start = *state;
+        *state = idx + 1;
+        Some((start, &content[start..idx]))
+    });
 
-    fn set_block(index: usize, in_block: &mut bool, range: &mut (Option<usize>, Option<usize>)) {
-        if *in_block {
-            range.1 = Some(index);
-        } else {
-            range.0 = Some(index);
-        }
-        *in_block = !*in_block;
-    }
+    let mut frontmatter_raw = None;
+    let mut code_raw = None;
+    'outer: while let Some((idx, val)) = lines.next() {
+        if val == "---" {
+            let start_pos = idx + val.len() + 1;
 
-    // find boundaries
-    let all_lines = content.lines();
-    for (i, line) in all_lines.enumerate() {
-        match line {
-            "---" => {
-                set_block(i, &mut in_frontmatter, &mut frontmatter_range);
+            for (fm_idx, fm_val) in lines.by_ref() {
+                if fm_val == "---" {
+                    frontmatter_raw = Some(content[start_pos..fm_idx].trim());
+                    break;
+                }
             }
-            "```" => {
-                set_block(i, &mut in_code_block, &mut code_block_range);
+        } else if val.starts_with("```") {
+            let start_pos = idx + val.len() + 1;
+
+            for (c_idx, c_val) in lines.by_ref() {
+                if c_val.starts_with("```") {
+                    code_raw = Some(content[start_pos..c_idx].trim());
+                    break 'outer;
+                }
             }
-            _ if in_frontmatter => frontmatter.push(line),
-            _ if in_code_block => code_block.push(line),
-            _ => {}
         }
     }
 
-    if code_block.is_empty() {
-        return None;
-    }
-
+    let code = code_raw?;
     let mut snippet = Snippet {
-        title: path
-            .file_stem()
-            .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "untitled".to_string()),
-        path: PathBuf::from(path),
-        command: code_block.join("\n"),
+        title: path.file_stem()?.to_string_lossy().into_owned(),
+        path: path.to_path_buf(),
+        command: code.to_string(),
         ..Default::default()
     };
 
-    if let Ok(frontmatter_yaml) = yaml_parser::parse_yaml_from_string(&frontmatter.join("\n")) {
-        snippet.description = match frontmatter_yaml.get("description") {
-            Some(Some(v)) => v.get_string(),
-            _ => None,
-        }
-        .unwrap_or("".to_string());
+    if let Some(fm_text) = frontmatter_raw
+        && let Ok(yaml) = yaml_parser::parse_yaml_from_string(fm_text)
+    {
+        let get_str = |k| yaml.get(k).and_then(|v| v.as_str());
 
-        snippet.used = match frontmatter_yaml.get("used") {
-            Some(Some(v)) => v.get_string(),
-            _ => None,
-        }
-        .unwrap_or("0".to_string())
-        .parse::<u16>()
-        .unwrap();
-
-        let last_used = match frontmatter_yaml.get("last_used") {
-            Some(Some(v)) => v.get_string(),
-            _ => None,
-        };
-
-        if let Some(date_str) = last_used {
-            snippet.last_used = DateTime::parse_from_rfc3339(&date_str)
-                .ok()
-                .map(|d| d.with_timezone(&Local));
-        }
+        snippet.description = get_str("description").unwrap_or("").to_string();
+        snippet.used = get_str("used").and_then(|s| s.parse().ok()).unwrap_or(0);
+        snippet.last_used = get_str("last_used")
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|d| d.with_timezone(&Local));
     }
 
     Some(snippet)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn it_parses_valid_md() {
+        let content = "---
+description: Test snippet
+used: 5
+---
+```
+echo 'hello world'
+```
+";
+
+        let path = Path::new("test-file.sh");
+        let result = extract_snippet(path, content).unwrap();
+
+        assert_eq!(result.title, "test-file");
+        assert_eq!(result.command, "echo 'hello world'");
+        assert_eq!(result.description, "Test snippet");
+        assert_eq!(result.used, 5);
+    }
+
+    #[test]
+    fn it_parses_valid_md_no_frontmatter() {
+        let content = "```bash
+echo 'hello world'
+```
+";
+
+        let path = Path::new("test-file.sh");
+        let result = extract_snippet(path, content).unwrap();
+
+        assert_eq!(result.title, "test-file");
+        assert_eq!(result.command, "echo 'hello world'");
+        assert_eq!(result.description, "");
+        assert_eq!(result.used, 0);
+    }
+
+    #[test]
+    fn it_parses_first_code_block() {
+        let content = "```bash
+echo 'hello world'
+```
+
+```bash
+echo 'hello world 2'
+```
+
+";
+
+        let path = Path::new("test-file.sh");
+        let result = extract_snippet(path, content).unwrap();
+
+        assert_eq!(result.title, "test-file");
+        assert_eq!(result.command, "echo 'hello world'");
+        assert_eq!(result.description, "");
+        assert_eq!(result.used, 0);
+    }
+
+    #[test]
+    fn it_ignores_md_without_code_block() {
+        let content = "---
+description: Test
+---
+this file doesn't have code blocks
+";
+
+        let path = Path::new("test-file.sh");
+        assert!(extract_snippet(path, content).is_none());
+    }
 }
