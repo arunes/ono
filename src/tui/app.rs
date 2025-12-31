@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout},
-    widgets::ListState,
+    widgets::{List, ListState},
 };
 
 use crate::{
@@ -21,9 +21,15 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct App {
-    pub counter: u8,
     pub exit: bool,
+
     pub snippets: Vec<Snippet>,
+    pub list_state: ListState,
+}
+
+enum ListMoveDirection {
+    Up,
+    Down,
 }
 
 impl App {
@@ -39,23 +45,30 @@ impl App {
     fn render_frame(&self, frame: &mut Frame) {
         let outer_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(frame.area());
 
         let inner_layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(vec![Constraint::Percentage(25), Constraint::Percentage(75)])
+            .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
             .split(outer_layout[1]);
 
         frame.render_widget(&TopWidget {}, outer_layout[0]);
+
         frame.render_widget(
             &mut SnippetListWidget {
                 snippets: &self.snippets,
-                state: ListState::default(),
+                state: self.list_state,
             },
             inner_layout[0],
         );
-        frame.render_widget(&SnippetDetailWidget {}, inner_layout[1]);
+
+        frame.render_widget(
+            &SnippetDetailWidget {
+                snippet: self.list_state.selected().map(|idx| &self.snippets[idx]),
+            },
+            inner_layout[1],
+        );
     }
 
     /// updates the application's state based on user input
@@ -77,8 +90,8 @@ impl App {
             {
                 self.exit()
             }
-            KeyCode::Left => self.decrement_counter()?,
-            KeyCode::Right => self.increment_counter()?,
+            KeyCode::Up => self.move_list_selection(ListMoveDirection::Up),
+            KeyCode::Down => self.move_list_selection(ListMoveDirection::Down),
             _ => {}
         }
         Ok(())
@@ -88,16 +101,19 @@ impl App {
         self.exit = true;
     }
 
-    fn decrement_counter(&mut self) -> Result<()> {
-        self.counter -= 1;
-        Ok(())
-    }
-
-    fn increment_counter(&mut self) -> Result<()> {
-        self.counter += 1;
-        if self.counter > 2 {
-            bail!("counter overflow");
+    fn move_list_selection(&mut self, direction: ListMoveDirection) {
+        if self.snippets.is_empty() {
+            return;
         }
-        Ok(())
+
+        let current_index = self.list_state.selected().unwrap_or(0);
+        let last_index = self.snippets.len().saturating_sub(1);
+
+        match direction {
+            ListMoveDirection::Up if current_index > 0 => self.list_state.select_previous(),
+            ListMoveDirection::Down if current_index < last_index => self.list_state.select_next(),
+            _ if self.list_state.selected().is_none() => self.list_state.select_first(),
+            _ => {}
+        }
     }
 }

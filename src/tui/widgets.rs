@@ -4,7 +4,8 @@ use ratatui::{
     style::{Color, Modifier, Style, Stylize, palette::tailwind::SLATE},
     text::{Line, Text},
     widgets::{
-        Block, Borders, HighlightSpacing, List, ListItem, ListState, StatefulWidget, Widget,
+        Block, Borders, HighlightSpacing, List, ListItem, ListState, Padding, Paragraph,
+        StatefulWidget, Widget,
     },
 };
 
@@ -15,7 +16,9 @@ pub struct SnippetListWidget<'a> {
     pub snippets: &'a [Snippet],
     pub state: ListState,
 }
-pub struct SnippetDetailWidget {}
+pub struct SnippetDetailWidget<'a> {
+    pub snippet: Option<&'a Snippet>,
+}
 
 impl Widget for &TopWidget {
     fn render(self, _area: Rect, _buf: &mut Buffer) {}
@@ -41,7 +44,7 @@ impl<'a> Widget for &mut SnippetListWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let block = Block::default().borders(Borders::ALL);
 
-        let items = self.snippets.iter().map(|snippet| ListItem::from(snippet));
+        let items = self.snippets.iter().map(ListItem::from);
         let list = List::new(items)
             .block(block)
             .highlight_style(SELECTED_STYLE)
@@ -52,22 +55,41 @@ impl<'a> Widget for &mut SnippetListWidget<'a> {
     }
 }
 
-impl Widget for &SnippetDetailWidget {
+impl<'a> Widget for &SnippetDetailWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Line::from(" selected snippet ".bold());
         let instructions = Line::from(vec![
             " Navigate ".into(),
             "<↑/↓>".blue().bold(),
             " Select ".into(),
-            "<Ender>".blue().bold(),
+            "<Enter>".blue().bold(),
             " Quit ".into(),
             "<Ctrl-C> ".blue().bold(),
         ]);
 
-        Block::default()
-            .title(title.centered())
-            .title_bottom(instructions.centered())
-            .borders(Borders::ALL)
-            .render(area, buf);
+        if let Some(snippet) = self.snippet {
+            let title_text = format!(" {} ", snippet.title);
+            let title_block = Block::default()
+                .title(Line::from(title_text).bold().centered())
+                .title_bottom(instructions.centered())
+                .borders(Borders::ALL)
+                .padding(Padding::uniform(1));
+
+            let mut lines: Vec<Line> = snippet.command.lines().map(Line::from).collect();
+            if !snippet.description.is_empty() {
+                lines.push(Line::from(""));
+                lines.push(Line::from(snippet.description.as_str().dark_gray()));
+            }
+
+            Paragraph::new(Text::from(lines))
+                .block(title_block)
+                //.scroll((self.scroll, 0))
+                .render(area, buf);
+        } else {
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" No Snippet Selected ")
+                .title_bottom(instructions)
+                .render(area, buf);
+        }
     }
 }

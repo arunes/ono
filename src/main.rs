@@ -25,6 +25,7 @@ fn main() -> Result<()> {
     let mut app = App::default();
     if let Some(data_dir) = ono_config.data_dir {
         app.snippets = store::load_snippets(&data_dir)?;
+        app.list_state.select_first();
     }
 
     render_tui(&mut app)
