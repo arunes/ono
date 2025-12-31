@@ -1,5 +1,7 @@
 use color_eyre::Result;
 
+use crate::tui::app::App;
+
 mod config;
 mod os_helper;
 mod store;
@@ -20,22 +22,17 @@ fn main() -> Result<()> {
         }
     };
 
-    println!(
-        "{:?}\n{:?}\n{:?}",
-        ono_config.data_dir, ono_config.history_file, ono_config.editor
-    );
-
+    let mut app = App::default();
     if let Some(data_dir) = ono_config.data_dir {
-        let snippets = store::load_snippets(&data_dir)?;
-        println!("{:?}", snippets);
+        app.snippets = store::load_snippets(&data_dir)?;
     }
 
-    Ok(())
+    render_tui(&mut app)
 }
 
-fn render_tui() -> Result<()> {
+fn render_tui(app: &mut App) -> Result<()> {
     let mut terminal = tui::init()?;
-    let app_result = tui::app::App::default().run(&mut terminal);
+    let app_result = app.run(&mut terminal);
     if let Err(err) = tui::restore() {
         eprintln!(
             "failed to restore terminal. Run `reset` or restart your terminal to recover: {err}"

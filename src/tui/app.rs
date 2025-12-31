@@ -8,17 +8,22 @@ use ratatui::{
     Frame,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout},
+    widgets::ListState,
 };
 
-use crate::tui::{
-    self,
-    widgets::{SnippetDetailWidget, SnippetListWidget, TopWidget},
+use crate::{
+    store::Snippet,
+    tui::{
+        self,
+        widgets::{SnippetDetailWidget, SnippetListWidget, TopWidget},
+    },
 };
 
 #[derive(Debug, Default)]
 pub struct App {
     pub counter: u8,
     pub exit: bool,
+    pub snippets: Vec<Snippet>,
 }
 
 impl App {
@@ -42,14 +47,15 @@ impl App {
             .constraints(vec![Constraint::Percentage(25), Constraint::Percentage(75)])
             .split(outer_layout[1]);
 
-        frame.render_widget(TopWidget {}, outer_layout[0]);
+        frame.render_widget(&TopWidget {}, outer_layout[0]);
         frame.render_widget(
-            SnippetListWidget {
-                counter: self.counter,
+            &mut SnippetListWidget {
+                snippets: &self.snippets,
+                state: ListState::default(),
             },
             inner_layout[0],
         );
-        frame.render_widget(SnippetDetailWidget {}, inner_layout[1]);
+        frame.render_widget(&SnippetDetailWidget {}, inner_layout[1]);
     }
 
     /// updates the application's state based on user input

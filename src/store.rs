@@ -10,12 +10,12 @@ use crate::config::yaml_parser;
 
 #[derive(Debug, Default)]
 pub struct Snippet {
-    title: String,
-    description: String,
-    command: String,
-    path: PathBuf,
-    used: u16,
-    last_used: Option<DateTime<Local>>,
+    pub title: String,
+    pub description: String,
+    pub command: String,
+    pub path: PathBuf,
+    pub used: u16,
+    pub last_used: Option<DateTime<Local>>,
 }
 
 pub fn load_snippets(data_dir: &str) -> io::Result<Vec<Snippet>> {
@@ -64,6 +64,8 @@ fn extract_snippet(path: &Path, content: &str) -> Option<Snippet> {
                     break 'outer;
                 }
             }
+
+            code_raw = Some(content[start_pos..].trim());
         }
     }
 
