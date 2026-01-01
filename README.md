@@ -1,3 +1,6 @@
+**_This project is being under active development and its not stable at the moment._**
+
+
 # ono
 ono is a cross-platform  CLI tool for managing command snippets. It saves command snippets in markdown format so you can easily browse or manage your command snippets with tools like Obsidian, or use version controller to take a backup.
 
@@ -15,7 +18,7 @@ ono is a cross-platform  CLI tool for managing command snippets. It saves comman
 ## Installation
 TODO!
 
-### Build from source`
+### Build from source
 TODO!
 
 ### Install binaries
