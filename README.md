@@ -13,7 +13,7 @@ ono is a cross-platform  CLI tool for managing command snippets. It saves comman
 - [Snippet Format](#snippet-format)
 - [Command Reference](#command-reference)
 
----
+<br/>
 
 ## Installation
 TODO!
@@ -24,7 +24,7 @@ TODO!
 ### Install binaries
 TODO!
 
----
+<br/>
 
 ## Getting Started
 After you install `ono` executable will be available in the terminal. Executing `ono` without any argument will open the main TUI. In the main app you can,
@@ -36,18 +36,24 @@ After you install `ono` executable will be available in the terminal. Executing 
 
 For more advanced usage, check [Adding Snippets](#adding-snippets), or [Command Reference](#command-reference).
 
----
+<br/>
 
 ## Configuration
-On startup, ono will try to read the configuration file from your OS's default config directory.
+Configuration is done through ono.yaml file. If no config file present, ono will try to determine the config values automatically.
 
-### Location
+> To check what ono automatically set for config values you can run `ono config` command.
 
-| Platform | Value                             | Example                                               |     |
-| -------- | --------------------------------- | ----------------------------------------------------- | --- |
-| Linux    | $XDG_CONFIG_HOME or $HOME/.config | /home/alice/.config/ono/ono.yaml                      |     |
-| macOS    | $HOME/Library/Application Support | /Users/Alice/Library/Application Support/ono/ono.yaml |     |
-| Windows  | {FOLDERID_RoamingAppData}         | C:\Users\Alice\AppData\Roaming\ono\ono.yaml           |     |
+### Sample configuration
+<details>
+<summary><strong>Preview example configuration file</strong></summary>
+<br>
+  
+```yaml
+data_dir: /home/alice/.local/share/ono
+editor: /user/bin/nvim
+history_file: /home/alice/.bash_history
+```
+</details>
 
 ### Configuration keys
 
@@ -57,10 +63,14 @@ On startup, ono will try to read the configuration file from your OS's default c
 | history_file | Location of your shell history file |
 | editor       | Your default text editor            |
 
-> If no config file present, ono will try to determine the config values automatically.
-> To check what ono automatically set for config values you can run `ono config` command.
+### Configuration File Location
+| Platform | Value                             | Example                                               |     |
+| -------- | --------------------------------- | ----------------------------------------------------- | --- |
+| Linux    | $XDG_CONFIG_HOME or $HOME/.config | /home/alice/.config/ono/ono.yaml                      |     |
+| macOS    | $HOME/Library/Application Support | /Users/Alice/Library/Application Support/ono/ono.yaml |     |
+| Windows  | {FOLDERID_RoamingAppData}         | C:\Users\Alice\AppData\Roaming\ono\ono.yaml           |     |
 
----
+<br/>
 
 ## Adding Snippets
 You can use couple of different ways to add snippets to ono. 
@@ -77,12 +87,12 @@ You can use couple of different ways to add snippets to ono.
 
 - Or you can use any text editor to create a md file following the snippet format below, in the `data_dir` directory. 
 
----
+<br/>
 
 ## Managing Snippets
 Running `ono` without any arguments will run main app. You can search, delete, edit, and set aliases.
 
----
+<br/>
 
 ## Snippet Format
 ono will use the below markdown template to create snippets. 
@@ -108,7 +118,7 @@ Fields
 - `last_used` Last use date of the snippet. Affects search result ordering, recently used snippets shows higher.
 - `alias` Shortcut to run retrieve snippet with `ono alias` 
 
----
+<br/>
 
 ## Command Reference
 | Command  | Description                                                                                                                                                                                         | Example           |                                                            |
