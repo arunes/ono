@@ -37,10 +37,11 @@ pub fn load_snippets(data_dir: &str) -> io::Result<Vec<Snippet>> {
 }
 
 fn extract_snippet(path: &Path, content: &str) -> Option<Snippet> {
-    let mut lines = content.match_indices('\n').scan(0, |state, (idx, _)| {
-        let start = *state;
-        *state = idx + 1;
-        Some((start, &content[start..idx]))
+    let mut start_offset = 0;
+    let mut lines = content.split_inclusive('\n').map(|line| {
+        let start = start_offset;
+        start_offset += line.len();
+        (start, line.trim_end_matches(['\r', '\n']))
     });
 
     let mut frontmatter_raw = None;
@@ -131,6 +132,22 @@ echo 'hello world'
         assert_eq!(result.command, "echo 'hello world'");
         assert_eq!(result.description, "");
         assert_eq!(result.used, 0);
+    }
+
+    #[test]
+    fn it_parses_valid_md_no_frontmatter_with_no_trailing_line() {
+        let content = "```bash
+echo 'hello world'
+```";
+
+        let path = Path::new("test-file.sh");
+        let result = extract_snippet(path, content).unwrap();
+
+        assert_eq!(result.title, "test-file");
+        assert_eq!(result.command, "echo 'hello world'");
+        assert_eq!(result.description, "");
+        assert_eq!(result.used, 0);
+        assert!(!result.command.contains("```"));
     }
 
     #[test]

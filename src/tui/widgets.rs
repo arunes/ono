@@ -12,12 +12,18 @@ use ratatui::{
 use crate::store::Snippet;
 
 pub struct TopWidget {}
+
 pub struct SnippetListWidget<'a> {
     pub snippets: &'a [Snippet],
     pub state: ListState,
 }
+
 pub struct SnippetDetailWidget<'a> {
     pub snippet: Option<&'a Snippet>,
+}
+
+pub struct SearchWidget<'a> {
+    pub query: &'a str,
 }
 
 impl Widget for &TopWidget {
@@ -91,5 +97,11 @@ impl<'a> Widget for &SnippetDetailWidget<'a> {
                 .title_bottom(instructions)
                 .render(area, buf);
         }
+    }
+}
+
+impl<'a> Widget for &SearchWidget<'a> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        Block::default().borders(Borders::ALL).render(area, buf);
     }
 }

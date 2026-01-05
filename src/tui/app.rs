@@ -1,21 +1,18 @@
-use color_eyre::{
-    Result,
-    eyre::{WrapErr, bail},
-};
+use color_eyre::{Result, eyre::WrapErr};
 
 use crossterm::event::KeyModifiers;
 use ratatui::{
     Frame,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Direction, Layout},
-    widgets::{List, ListState},
+    widgets::ListState,
 };
 
 use crate::{
     store::Snippet,
     tui::{
         self,
-        widgets::{SnippetDetailWidget, SnippetListWidget, TopWidget},
+        widgets::{SearchWidget, SnippetDetailWidget, SnippetListWidget, TopWidget},
     },
 };
 
@@ -45,7 +42,11 @@ impl App {
     fn render_frame(&self, frame: &mut Frame) {
         let outer_layout = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints([
+                Constraint::Percentage(45),
+                Constraint::Percentage(50),
+                Constraint::Percentage(5),
+            ])
             .split(frame.area());
 
         let inner_layout = Layout::default()
@@ -69,6 +70,8 @@ impl App {
             },
             inner_layout[1],
         );
+
+        frame.render_widget(&SearchWidget { query: "" }, outer_layout[2]);
     }
 
     /// updates the application's state based on user input
